@@ -85,32 +85,18 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       .find('div')
       .each((idx, element) => {
         const el = $(element);
-        novel.name = $('div.col-sm-9').find('.book-title').text().trim();
-
-        const regex =
-          /<img[^>]+class="[^"]*image\s+cover[^"]*"[^>]+src="([^"]+)"/;
-        const match = html.match(regex);
-        const coverUrl = match ? match[1] : defaultCover;
-        novel.cover = coverUrl || defaultCover;
-
+        novel.name = el.find('z-cover').attr('title') || 'Untitled';
+        novel.author = el.find('z-cover').attr('author') || 'Untitled';
         novel.summary = $('div#bookDescriptionBox').text().trim();
-
-        const writer: string[] = [];
-        $('div.col-sm-9 i a').each((_, el) => {
-          writer.push($(el).text().trim());
-        });
-        novel.author = writer.join(', ') || 'Unknown Author';
-
-        const genre: string[] = [];
-        $(
-          'div.col-sm-9 bookProperty.property_categories .property_value a',
-        ).each((_, el) => {
-          genre.push($(el).text().trim());
-        });
-        novel.genres = genre.join(', ') || 'Unknown Genre';
+        novel.cover =
+          el.find('z-cover').find('img').attr('src') || defaultCover;
+        novel.genres =
+          $('div.col-sm-9 bookProperty.property_categories .property_value a')
+            .text()
+            .trim() || 'Unknown Genre';
+        novel.status = NovelStatus.Completed;
 
         // novel.artist = '';
-        novel.status = NovelStatus.Completed;
 
         const chapters: Plugin.ChapterItem[] = [];
 
