@@ -49,10 +49,10 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         // Wrap the raw element with Cheerio so we can use Cheerio methods
         const el = $(element);
         const title = el.find('z-cover').attr('title');
-        const url = el.find('a').attr('href');
+        const url = `${el.find('a').attr('href')}`;
         const cover = el.find('z-cover').find('img').attr('src');
         const name = `${title}`;
-        const path = `${url}`;
+        const path = url.replace('/book/', '');
         // Push the extracted data into the array
         novels.push({
           name,
@@ -70,32 +70,81 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     return data;
   }
 
+  async cleanUp(url: string, removePart: string) {
+    return url.replace(removePart, '');
+  }
   async parseNovel(novelPath: string): Promise<Plugin.SourceNovel> {
+    //novelPath = await this.cleanUp(novelPath, '/book');
+    novelPath = await this.cleanUp(novelPath, '?dsource=mostpopular');
+
+    //if the webview on android works now then add this cleanup thing to the main functions
+
+    console.log(novelPath);
+    console.log(this.site + `${novelPath}`);
+    const novelpage = await this.getHtml(this.site + `/book/${novelPath}`);
+
+    const $ = loadCheerio(novelpage);
+
     const novel: Plugin.SourceNovel = {
       path: novelPath,
-      name: 'Untitled',
+      name: $('div.col-sm-9').find('h1').text().trim() || 'Untitled',
     };
 
     // TODO: get here data from the site and
     // fill-in the novel object with the relevant data
-    const html: string = await this.getHtml(this.site + novelPath);
-    const $: cheerio.CheerioAPI = loadCheerio(html);
 
     $('div.row.cardBooks')
       .find('div')
       .each((idx, element) => {
         const el = $(element);
-        novel.name = el.find('z-cover').attr('title') || 'Untitled';
         novel.author = el.find('z-cover').attr('author') || 'Untitled';
-        novel.summary = $('div#bookDescriptionBox').text().trim();
-        novel.cover =
-          el.find('z-cover').find('img').attr('src') || defaultCover;
+        novel.cover = $('z-cover img').attr('src') || defaultCover;
         novel.genres =
           $('div.col-sm-9 bookProperty.property_categories .property_value a')
             .text()
             .trim() || 'Unknown Genre';
         novel.status = NovelStatus.Completed;
 
+        const description =
+          $('div#bookDescriptionBox').text().trim() ||
+          'No description available';
+        const language =
+          $(
+            'div.col-sm-9 bookProperty.property_language .property_value.text-capitalize',
+          )
+            .text()
+            .trim() || 'Unknown language';
+        const publisher =
+          $('div.col-sm-9 bookProperty.property_publisher .property_value')
+            .text()
+            .trim() || 'Unknown publisher';
+        const series =
+          $('div.col-sm-9 bookProperty.property_series .property_value')
+            .text()
+            .trim() || 'Unknown series';
+        const volume =
+          $('div.col-sm-9 bookProperty.property_volume .property_value')
+            .text()
+            .trim() || 'Unknown volume';
+        const file_size =
+          $('div.col-sm-9 bookProperty.property_file .property_value')
+            .text()
+            .trim() || 'Unknown file and size';
+        const year =
+          $('div.col-sm-9 bookProperty.property_year .property_value')
+            .text()
+            .trim() || 'Unknown year';
+
+        novel.summary = `${description}
+
+          Language: ${language}
+          Publisher: ${publisher}
+          Series: ${series}
+          Volume: ${volume}
+          Year: ${year}
+          File, Size: ${file_size}`;
+
+        // novel.name = el.find('z-cover').attr('title') || 'Untitled';
         // novel.artist = '';
 
         const chapters: Plugin.ChapterItem[] = [];
@@ -119,6 +168,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     const chapterText = '';
     return chapterText;
   }
+
   async searchNovels(
     searchTerm: string,
     pageNo: number,
@@ -129,7 +179,8 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       this.site + '/s/' + searchTerm.trim(),
     );
 
-    const $: cheerio.CheerioAPI = loadCheerio(html);
+    //I know the await does nothing here but don't remove it pls!
+    const $: cheerio.CheerioAPI = await loadCheerio(html);
 
     $('#searchResultBox')
       .find('div.book-item')
