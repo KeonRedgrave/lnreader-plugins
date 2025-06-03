@@ -16,17 +16,10 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   name = 'ZLibrary';
   icon = 'src/en/zlib/images.png';
   site = 'https://z-lib.fm';
-  version = '1.1.0';
+  version = '1.0.0';
   filters: Filters | undefined = undefined;
-  headers = {
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  };
-  imageRequestInit?: Plugin.ImageRequestInit | undefined = {
-    headers: {
-      'referrer': this.site,
-    },
-  };
+  imageRequestInit?: Plugin.ImageRequestInit | undefined = undefined;
+
   //flag indicates whether access to LocalStorage, SesesionStorage is required.
   webStorageUtilized?: boolean;
 
@@ -52,7 +45,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         const url = `${el.find('a').attr('href')}`;
         const cover = el.find('z-cover').find('img').attr('src');
         const name = `${title}`;
-        const path = url.replace('/book/', '');
+        const path = `${url.replace(/^\/book\//, '')}`; //.replace('/book/', '');
         // Push the extracted data into the array
         novels.push({
           name,
@@ -70,22 +63,17 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     return data;
   }
 
-  async cleanUp(url: string, removePart: string) {
+  /*async cleanUp(url: string, removePart: string) {
     return url.replace(removePart, '');
-  }
-
+  } */
+  //Don't ask questions.
   async parseNovel(novelPath: string): Promise<Plugin.SourceNovel> {
-    //novelPath = await this.cleanUp(novelPath, '/book');
-    novelPath = await this.cleanUp(novelPath, '?dsource=mostpopular');
-    //if the webview on android works now then add this cleanup thing to the main functions
-
-    console.log(novelPath);
-    console.log(this.site + `${novelPath}`);
-    const novelpage = await this.getHtml(this.site + `/book/${novelPath}`);
-    console.log(novelpage);
+    // The code under here breaks the plugin
+    //
+    // The code above here breaks the plugin
+    const novelpage = await this.getHtml(`${this.site}/book/${novelPath}`);
 
     const $ = loadCheerio(novelpage);
-    console.log($);
 
     const novel: Plugin.SourceNovel = {
       path: novelPath,
@@ -93,82 +81,125 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     };
 
     // TODO: get here data from the site and
-    // fill-in the novel object with the relevant data
 
-    $('div.row.cardBooks')
-      .find('div')
-      .each((idx, element) => {
-        const el = $(element);
-        novel.author = el.find('z-cover').attr('author') || 'Untitled';
-        novel.cover = $('z-cover img').attr('src') || defaultCover;
-        novel.genres =
-          $('div.col-sm-9 bookProperty.property_categories .property_value a')
-            .text()
-            .trim() || 'Unknown Genre';
-        novel.status = NovelStatus.Completed;
+    novel.name = `${$('div.col-sm-9').find('h1').text().trim()}`;
+    // novel.artist = '';
+    novel.author = `${$('z-cover').attr('author')}` || 'Unknown Author';
+    novel.cover = `${$('z-cover img').attr('src')}` || defaultCover;
+    novel.genres =
+      `${$('div.col-sm-9 div.bookDetailsBox div.property_value a').text().trim()}` ||
+      'Unknown Genre';
+    novel.status = NovelStatus.Completed;
 
-        const description =
-          $('div#bookDescriptionBox').text().trim() ||
-          'No description available';
-        const language =
-          $(
-            'div.col-sm-9 bookProperty.property_language .property_value.text-capitalize',
-          )
-            .text()
-            .trim() || 'Unknown language';
-        const publisher =
-          $('div.col-sm-9 bookProperty.property_publisher .property_value')
-            .text()
-            .trim() || 'Unknown publisher';
-        const series =
-          $('div.col-sm-9 bookProperty.property_series .property_value')
-            .text()
-            .trim() || 'Unknown series';
-        const volume =
-          $('div.col-sm-9 bookProperty.property_volume .property_value')
-            .text()
-            .trim() || 'Unknown volume';
-        const file_size =
-          $('div.col-sm-9 bookProperty.property_file .property_value')
-            .text()
-            .trim() || 'Unknown file and size';
-        const year =
-          $('div.col-sm-9 bookProperty.property_year .property_value')
-            .text()
-            .trim() || 'Unknown year';
+    const novelDescription: string = $('div.col-sm-9')
+      .find('#bookDescriptionBox')
+      .text()
+      .trim();
 
-        novel.summary = `${description}
+    const formattedNovelDescription: string = novelDescription
+      .split(/\n+/)
+      .map(p => p.trim())
+      .filter(Boolean)
+      .join('\n\n');
 
-          Language: ${language}
-          Publisher: ${publisher}
-          Series: ${series}
-          Volume: ${volume}
-          Year: ${year}
-          File, Size: ${file_size}`;
+    const showDesc: string =
+      formattedNovelDescription || 'Description Unavailable';
 
-        // novel.name = el.find('z-cover').attr('title') || 'Untitled';
-        // novel.artist = '';
+    const content: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property_content_type')
+        .find('span')
+        .text()
+        .trim() || 'Unavailable';
 
-        const chapters: Plugin.ChapterItem[] = [];
+    const year: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property_year')
+        .find('div.property_value')
+        .text()
+        .trim() || 'Unavailable';
 
-        // TODO: here parse the chapter list
+    const publisher: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property_publisher')
+        .find('div.property_value')
+        .text()
+        .trim() || 'Unavailable';
 
-        // TODO: add each chapter to the list using
-        const chapter: Plugin.ChapterItem = {
-          name: '',
-          path: '',
-          releaseTime: '',
-          chapterNumber: 0,
-        };
-        chapters.push(chapter);
-        novel.chapters = chapters;
-      });
+    const language: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property_language')
+        .find('div.property_value')
+        .text()
+        .toUpperCase()
+        .trim() || 'Unavailable';
+
+    const pages: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property_pages')
+        .find('div.property_value')
+        .text()
+        .trim() || 'Unavailable';
+
+    const filetypeSize: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property__file')
+        .find('div.property_value')
+        .text()
+        .trim() || 'Unavailable';
+
+    const series: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property__series')
+        .find('div.property_value')
+        .text()
+        .trim() || 'Unavailable';
+
+    const volume: string =
+      $('div.col-sm-9 div.bookDetailsBox div.property__volume')
+        .find('div.property_value')
+        .text()
+        .trim() || 'Unavailable';
+
+    novel.summary = `
+      ${showDesc}\n
+      Language: ${language}\n
+      Publisher: ${publisher}\n
+      Series: ${series}\n
+      Volume: ${volume}\n
+      Year: ${year}\n
+      Content Type: ${content}\n
+      Pages: ${pages}\n
+      Filet, Size: ${filetypeSize}
+      `;
+
+    const chapters: Plugin.ChapterItem[] = [];
+
+    const chapter: Plugin.ChapterItem = {
+      name: `${$('div.col-sm-9').find('h1').text().trim()}`,
+      path: `${$(
+        'div.col-md-12 div section.book-actions-container div.book-details-button div.btn-group',
+      )
+        .eq(2)
+        .find('a.btn')
+        .attr('href')}`,
+      releaseTime:
+        $('div.col-sm-9 div.bookDetailsBox div.property_year')
+          .find('div.property_value')
+          .text()
+          .trim() || 'Unavailable',
+      chapterNumber: 0,
+    };
+    chapters.push(chapter);
+
+    novel.chapters = chapters;
     return novel;
   }
   async parseChapter(chapterPath: string): Promise<string> {
-    // parse chapter text here
-    const chapterText = '';
-    return chapterText;
+    if (chapterPath) {
+      const epubLink = `${this.site}${chapterPath}`;
+      return `
+          <p>
+            <b>Click below to download the EPUB:</b><br/>
+            <a href="${epubLink}">${epubLink}</a>
+          </p>
+        `;
+    }
+
+    return 'No content.';
   }
 
   async searchNovels(
@@ -190,11 +221,11 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         // Wrap the raw element with Cheerio so we can use Cheerio methods
         const el = $(element);
         const title = el.find('div[slot=title]').text().trim();
-        const url = el.find('z-bookcard').attr('href');
+        const url = `${el.find('z-bookcard').attr('href')}`;
         const cover = el.find('z-bookcard').find('img').attr('data-src');
         const name = `${title}`;
-        const path = `${url}`;
-        // Push the extracted data into the array
+        const path = `${url.replace(/^\/book\//, '')}`;
+
         novels.push({
           name,
           path,
@@ -206,7 +237,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   }
 
   resolveUrl = (path: string, isNovel?: boolean) =>
-    this.site + (isNovel ? '/book/' : '/chapter/') + path;
+    this.site + (isNovel ? '/book/' : '') + path;
 }
 
 export default new Zlibrary_plugin();
