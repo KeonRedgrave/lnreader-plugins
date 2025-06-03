@@ -12,11 +12,11 @@ import * as cheerio from 'cheerio';
 // import { Parser } from 'htmlparser2';
 
 class Zlibrary_plugin implements Plugin.PluginBase {
-  id = 'zlibrary';
-  name = 'Z Library';
+  id = 'zlib';
+  name = 'ZLibrary';
   icon = 'src/en/zlib/images.png';
   site = 'https://z-lib.fm';
-  version = '1.0.0';
+  version = '1.1.0';
   filters: Filters | undefined = undefined;
   headers = {
     'User-Agent':
@@ -73,17 +73,19 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   async cleanUp(url: string, removePart: string) {
     return url.replace(removePart, '');
   }
+
   async parseNovel(novelPath: string): Promise<Plugin.SourceNovel> {
     //novelPath = await this.cleanUp(novelPath, '/book');
     novelPath = await this.cleanUp(novelPath, '?dsource=mostpopular');
-
     //if the webview on android works now then add this cleanup thing to the main functions
 
     console.log(novelPath);
     console.log(this.site + `${novelPath}`);
     const novelpage = await this.getHtml(this.site + `/book/${novelPath}`);
+    console.log(novelpage);
 
     const $ = loadCheerio(novelpage);
+    console.log($);
 
     const novel: Plugin.SourceNovel = {
       path: novelPath,
