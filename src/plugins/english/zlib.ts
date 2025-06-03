@@ -129,16 +129,22 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       'Unknown Genre';
     novel.status = NovelStatus.Completed;
 
-    const novelDescription: string = $('div.col-sm-9')
-      .find('#bookDescriptionBox')
-      .text()
-      .trim();
+    const novelDescription = $('div.col-sm-9').find('#bookDescriptionBox');
 
-    const formattedNovelDescription: string = novelDescription
-      .split(/\n+/)
-      .map(p => p.trim())
-      .filter(Boolean)
-      .join('\n\n');
+    let formattedNovelDescription = '';
+
+    novelDescription.contents().each((_, el) => {
+      if (el.type === 'text') {
+        formattedNovelDescription += $(el).text();
+      } else if (el.type === 'tag' && el.tagName === 'br') {
+        formattedNovelDescription += '\n';
+      } else if (el.type === 'tag' && el.name === 'p') {
+        const text = $(el).text().trim();
+        if (text) formattedNovelDescription += '\n\n' + text;
+      }
+    });
+
+    formattedNovelDescription = formattedNovelDescription.trim();
 
     const showDesc: string =
       formattedNovelDescription || 'Description Unavailable';
@@ -181,13 +187,13 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         .trim() || 'Unavailable';
 
     const series: string =
-      $('div.col-sm-9 div.bookDetailsBox div.property__series')
+      $('div.col-sm-9 div.bookDetailsBox div.property_series')
         .find('div.property_value')
         .text()
         .trim() || 'Unavailable';
 
     const volume: string =
-      $('div.col-sm-9 div.bookDetailsBox div.property__volume')
+      $('div.col-sm-9 div.bookDetailsBox div.property_volume')
         .find('div.property_value')
         .text()
         .trim() || 'Unavailable';
@@ -246,9 +252,37 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   ): Promise<Plugin.NovelItem[]> {
     const novels: Plugin.NovelItem[] = [];
 
-    const html: string = await this.getHtml(
-      this.site + '/s/' + searchTerm.trim(),
-    );
+    let url =
+      this.site +
+      '/s' +
+      (searchTerm.trim() ? '/' + encodeURIComponent(searchTerm.trim()) : '');
+
+    // Add filters if they exist
+    if (this.filters) {
+      const params = new URLSearchParams();
+
+      if (this.filters.yearFrom.value) {
+        params.append('yearFrom', this.filters.yearFrom.value.toString());
+      }
+
+      if (this.filters.yearTo.value) {
+        params.append('yearTo', this.filters.yearTo.value.toString());
+      }
+
+      if (this.filters.language.value) {
+        params.append('languages[]', this.filters.language.value.toString());
+      }
+
+      if (this.filters.extension.value) {
+        params.append('extensions[]', this.filters.extension.value.toString());
+      }
+
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+    }
+
+    const html: string = await this.getHtml(url);
 
     //I know the await does nothing here but don't remove it pls!
     const $: cheerio.CheerioAPI = await loadCheerio(html);
