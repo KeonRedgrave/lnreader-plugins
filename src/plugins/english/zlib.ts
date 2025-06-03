@@ -1,6 +1,5 @@
-import { fetchApi, fetchProto, fetchText } from '@libs/fetch';
 import { Plugin } from '@typings/plugin';
-import { Filters } from '@libs/filterInputs';
+import { Filters, FilterTypes } from '@libs/filterInputs';
 import { load as loadCheerio } from 'cheerio';
 import { defaultCover } from '@libs/defaultCover';
 import { NovelStatus } from '@libs/novelStatus';
@@ -8,16 +7,55 @@ import * as cheerio from 'cheerio';
 // import { isUrlAbsolute } from '@libs/isAbsoluteUrl';
 // import { storage, localStorage, sessionStorage } from '@libs/storage';
 // import { encode, decode } from 'urlencode';
-// import dayjs from 'dayjs';
-// import { Parser } from 'htmlparser2';
 
 class Zlibrary_plugin implements Plugin.PluginBase {
   id = 'zlib';
-  name = 'ZLibrary';
+  name = 'Z-Library';
   icon = 'src/en/zlib/images.png';
   site = 'https://z-lib.fm';
   version = '1.0.0';
-  filters: Filters | undefined = undefined;
+
+  filters: Filters = {
+    yearFrom: {
+      label: 'Year From',
+      value: '',
+      type: FilterTypes.TextInput,
+    },
+    yearTo: {
+      label: 'Year To',
+      value: '',
+      type: FilterTypes.TextInput,
+    },
+    language: {
+      label: 'Language',
+      options: [
+        { label: 'All', value: '' },
+        { label: 'English', value: 'english' },
+        { label: 'Japanese', value: 'japanese' },
+        { label: 'Chinese', value: 'chinese' },
+        { label: 'Korean', value: 'korean' },
+        { label: 'French', value: 'french' },
+        { label: 'German', value: 'german' },
+        { label: 'Spanish', value: 'spanish' },
+        { label: 'Bengali', value: 'bengali' },
+      ],
+      type: FilterTypes.Picker,
+      value: 'english',
+    },
+    extension: {
+      label: 'Extension',
+      options: [
+        { label: 'All', value: '' },
+        { label: 'epub', value: 'epub' },
+        { label: 'pdf', value: 'pdf' },
+        { label: 'mobi', value: 'mobi' },
+        { label: 'azw3', value: 'azw3' },
+      ],
+      type: FilterTypes.Picker,
+      value: 'epub',
+    },
+  };
+
   imageRequestInit?: Plugin.ImageRequestInit | undefined = undefined;
 
   //flag indicates whether access to LocalStorage, SesesionStorage is required.
