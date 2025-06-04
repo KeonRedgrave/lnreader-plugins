@@ -140,11 +140,23 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         formattedNovelDescription += '\n';
       } else if (el.type === 'tag' && el.name === 'p') {
         const text = $(el).text().trim();
-        if (text) formattedNovelDescription += '\n\n' + text;
+        if (text) {
+          // Add double newline to separate paragraphs
+          if (!formattedNovelDescription.endsWith('\n\n')) {
+            formattedNovelDescription += '\n';
+          }
+          formattedNovelDescription += text;
+        }
       }
     });
 
     formattedNovelDescription = formattedNovelDescription.trim();
+
+    // Normalize spacing: remove excessive line breaks
+    formattedNovelDescription = formattedNovelDescription.replace(
+      /\n{2,}/g,
+      '\n',
+    );
 
     const showDesc: string =
       formattedNovelDescription || 'Description Unavailable';
@@ -199,15 +211,15 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         .trim() || 'Unavailable';
 
     novel.summary = `
-      ${showDesc}\n
-      Language: ${language}\n
-      Publisher: ${publisher}\n
-      Series: ${series}\n
-      Volume: ${volume}\n
-      Year: ${year}\n
-      Content Type: ${content}\n
-      Pages: ${pages}\n
-      Filet, Size: ${filetypeSize}
+    Language: ${language}\n
+    Publisher: ${publisher}\n
+    Series: ${series}\n
+    Volume: ${volume}\n
+    Year: ${year}\n
+    Content Type: ${content}\n
+    Pages: ${pages}\n
+    Filet, Size: ${filetypeSize}
+    ${showDesc}\n
       `;
 
     const chapters: Plugin.ChapterItem[] = [];
@@ -278,14 +290,14 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       }
 
       if (params.toString()) {
-        url += '?' + params.toString();
+        url += '/?' + params.toString();
       }
     }
 
     const html: string = await this.getHtml(url);
 
     //I know the await does nothing here but don't remove it pls!
-    const $: cheerio.CheerioAPI = await loadCheerio(html);
+    const $: cheerio.CheerioAPI = loadCheerio(html);
 
     $('#searchResultBox')
       .find('div.book-item')
