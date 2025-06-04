@@ -237,7 +237,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     Year: ${year}
     Content Type: ${content}
     Pages: ${pages}
-    File, Size: ${filetypeSize}\n\n
+    File, Size: ${filetypeSize}\n
     ${showDesc}
       `;
 
