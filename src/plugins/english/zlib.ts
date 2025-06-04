@@ -31,7 +31,6 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       options: [
         { label: 'All', value: '' },
         { label: 'English', value: 'english' },
-        { label: 'Bengali', value: 'bengali' },
         { label: 'Japanese', value: 'japanese' },
         { label: 'Chinese', value: 'chinese' },
         { label: 'Korean', value: 'korean' },
@@ -40,7 +39,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         { label: 'Spanish', value: 'spanish' },
       ],
       type: FilterTypes.Picker,
-      value: '',
+      value: 'english',
     },
     extension: {
       label: 'Extension',
@@ -52,7 +51,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         { label: 'azw3', value: 'AZW3' },
       ],
       type: FilterTypes.Picker,
-      value: '',
+      value: 'EPUB',
     },
   };
 
@@ -70,33 +69,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   ): Promise<Plugin.NovelItem[]> {
     const novels: Plugin.NovelItem[] = [];
 
-    let url = this.site + '/popular';
-
-    if (this.filters) {
-      const params = new URLSearchParams();
-
-      if (this.filters.yearFrom.value) {
-        params.append('yearFrom', this.filters.yearFrom.value.toString());
-      }
-
-      if (this.filters.yearTo.value) {
-        params.append('yearTo', this.filters.yearTo.value.toString());
-      }
-
-      if (this.filters.language.value) {
-        params.append('languages[]', this.filters.language.value.toString());
-      }
-
-      if (this.filters.extension.value) {
-        params.append('extensions[]', this.filters.extension.value.toString());
-      }
-
-      if (params.toString()) {
-        url = this.site + '/s/?' + params.toString();
-      }
-    }
-
-    const html: string = await this.getHtml(url);
+    const html: string = await this.getHtml(this.site + '/popular');
 
     const $: cheerio.CheerioAPI = loadCheerio(html);
 
@@ -283,10 +256,35 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   ): Promise<Plugin.NovelItem[]> {
     const novels: Plugin.NovelItem[] = [];
 
-    const url =
+    let url =
       this.site +
       '/s' +
       (searchTerm.trim() ? '/' + encodeURIComponent(searchTerm.trim()) : '');
+
+    // Add filters if they exist
+    if (this.filters) {
+      const params = new URLSearchParams();
+
+      if (this.filters.yearFrom.value) {
+        params.append('yearFrom', this.filters.yearFrom.value.toString());
+      }
+
+      if (this.filters.yearTo.value) {
+        params.append('yearTo', this.filters.yearTo.value.toString());
+      }
+
+      if (this.filters.language.value) {
+        params.append('languages[]', this.filters.language.value.toString());
+      }
+
+      if (this.filters.extension.value) {
+        params.append('extensions[]', this.filters.extension.value.toString());
+      }
+
+      if (params.toString()) {
+        url += '/?' + params.toString();
+      }
+    }
 
     const html: string = await this.getHtml(url);
 
