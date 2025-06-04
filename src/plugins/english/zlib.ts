@@ -31,28 +31,28 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       options: [
         { label: 'All', value: '' },
         { label: 'English', value: 'english' },
+        { label: 'Bengali', value: 'bengali' },
         { label: 'Japanese', value: 'japanese' },
         { label: 'Chinese', value: 'chinese' },
         { label: 'Korean', value: 'korean' },
         { label: 'French', value: 'french' },
         { label: 'German', value: 'german' },
         { label: 'Spanish', value: 'spanish' },
-        { label: 'Bengali', value: 'bengali' },
       ],
       type: FilterTypes.Picker,
-      value: 'english',
+      value: '',
     },
     extension: {
       label: 'Extension',
       options: [
         { label: 'All', value: '' },
-        { label: 'epub', value: 'epub' },
-        { label: 'pdf', value: 'pdf' },
-        { label: 'mobi', value: 'mobi' },
-        { label: 'azw3', value: 'azw3' },
+        { label: 'epub', value: 'EPUB' },
+        { label: 'pdf', value: 'PDF' },
+        { label: 'mobi', value: 'MOBI' },
+        { label: 'azw3', value: 'AZW3' },
       ],
       type: FilterTypes.Picker,
-      value: 'epub',
+      value: '',
     },
   };
 
@@ -70,7 +70,33 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   ): Promise<Plugin.NovelItem[]> {
     const novels: Plugin.NovelItem[] = [];
 
-    const html: string = await this.getHtml(this.site + '/popular');
+    let url = this.site + '/popular';
+
+    if (this.filters) {
+      const params = new URLSearchParams();
+
+      if (this.filters.yearFrom.value) {
+        params.append('yearFrom', this.filters.yearFrom.value.toString());
+      }
+
+      if (this.filters.yearTo.value) {
+        params.append('yearTo', this.filters.yearTo.value.toString());
+      }
+
+      if (this.filters.language.value) {
+        params.append('languages[]', this.filters.language.value.toString());
+      }
+
+      if (this.filters.extension.value) {
+        params.append('extensions[]', this.filters.extension.value.toString());
+      }
+
+      if (params.toString()) {
+        url = this.site + '/s/?' + params.toString();
+      }
+    }
+
+    const html: string = await this.getHtml(url);
 
     const $: cheerio.CheerioAPI = loadCheerio(html);
 
@@ -101,14 +127,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     return data;
   }
 
-  /*async cleanUp(url: string, removePart: string) {
-    return url.replace(removePart, '');
-  } */
-  //Don't ask questions.
   async parseNovel(novelPath: string): Promise<Plugin.SourceNovel> {
-    // The code under here breaks the plugin
-    //
-    // The code above here breaks the plugin
     const novelpage = await this.getHtml(`${this.site}/book/${novelPath}`);
 
     const $ = loadCheerio(novelpage);
@@ -137,13 +156,13 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       if (el.type === 'text') {
         formattedNovelDescription += $(el).text();
       } else if (el.type === 'tag' && el.tagName === 'br') {
-        formattedNovelDescription += '\n';
+        formattedNovelDescription += '\n\n';
       } else if (el.type === 'tag' && el.name === 'p') {
         const text = $(el).text().trim();
         if (text) {
           // Add double newline to separate paragraphs
           if (!formattedNovelDescription.endsWith('\n\n')) {
-            formattedNovelDescription += '\n';
+            formattedNovelDescription += '\n\n';
           }
           formattedNovelDescription += text;
         }
@@ -154,8 +173,8 @@ class Zlibrary_plugin implements Plugin.PluginBase {
 
     // Normalize spacing: remove excessive line breaks
     formattedNovelDescription = formattedNovelDescription.replace(
-      /\n{2,}/g,
-      '\n',
+      /\n{3,}/g,
+      '\n\n',
     );
 
     const showDesc: string =
@@ -211,15 +230,15 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         .trim() || 'Unavailable';
 
     novel.summary = `
-    Language: ${language}\n
-    Publisher: ${publisher}\n
-    Series: ${series}\n
-    Volume: ${volume}\n
-    Year: ${year}\n
-    Content Type: ${content}\n
-    Pages: ${pages}\n
-    Filet, Size: ${filetypeSize}
-    ${showDesc}\n
+    Language: ${language}
+    Publisher: ${publisher}
+    Series: ${series}
+    Volume: ${volume}
+    Year: ${year}
+    Content Type: ${content}
+    Pages: ${pages}
+    File, Size: ${filetypeSize}\n\n
+    ${showDesc}
       `;
 
     const chapters: Plugin.ChapterItem[] = [];
@@ -264,39 +283,13 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   ): Promise<Plugin.NovelItem[]> {
     const novels: Plugin.NovelItem[] = [];
 
-    let url =
+    const url =
       this.site +
       '/s' +
       (searchTerm.trim() ? '/' + encodeURIComponent(searchTerm.trim()) : '');
 
-    // Add filters if they exist
-    if (this.filters) {
-      const params = new URLSearchParams();
-
-      if (this.filters.yearFrom.value) {
-        params.append('yearFrom', this.filters.yearFrom.value.toString());
-      }
-
-      if (this.filters.yearTo.value) {
-        params.append('yearTo', this.filters.yearTo.value.toString());
-      }
-
-      if (this.filters.language.value) {
-        params.append('languages[]', this.filters.language.value.toString());
-      }
-
-      if (this.filters.extension.value) {
-        params.append('extensions[]', this.filters.extension.value.toString());
-      }
-
-      if (params.toString()) {
-        url += '/?' + params.toString();
-      }
-    }
-
     const html: string = await this.getHtml(url);
 
-    //I know the await does nothing here but don't remove it pls!
     const $: cheerio.CheerioAPI = loadCheerio(html);
 
     $('#searchResultBox')
