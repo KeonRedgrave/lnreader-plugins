@@ -40,7 +40,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         { label: 'Bengali', value: 'bengali' },
       ],
       type: FilterTypes.Picker,
-      value: 'english',
+      value: '',
     },
     extension: {
       label: 'Extension',
@@ -52,7 +52,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
         { label: 'azw3', value: 'AZW3' },
       ],
       type: FilterTypes.Picker,
-      value: 'EPUB',
+      value: '',
     },
   };
 
@@ -63,26 +63,26 @@ class Zlibrary_plugin implements Plugin.PluginBase {
 
   async popularNovels(
     pageNo: number,
-    {}: Plugin.PopularNovelsOptions<typeof this.filters>,
+    { filters }: Plugin.PopularNovelsOptions<typeof this.filters>,
   ): Promise<Plugin.NovelItem[]> {
     let url = this.site + '/popular';
     const novels: Plugin.NovelItem[] = [];
 
     const params = new URLSearchParams();
 
-    if (this.filters.yearFrom.value) {
+    if (filters?.yearFrom?.value) {
       params.append('yearFrom', this.filters.yearFrom.value.toString());
     }
 
-    if (this.filters.yearTo.value) {
+    if (filters?.yearTo?.value) {
       params.append('yearTo', this.filters.yearTo.value.toString());
     }
 
-    if (this.filters.language.value) {
+    if (filters?.language?.value) {
       params.append('languages[]', this.filters.language.value.toString());
     }
 
-    if (this.filters.extension.value) {
+    if (filters?.extension?.value) {
       params.append('extensions[]', this.filters.extension.value.toString());
     }
 
@@ -93,42 +93,42 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     const html: string = await this.getHtml(url);
 
     const $: cheerio.CheerioAPI = loadCheerio(html);
-    if (this.filters) {
-      $('#searchResultBox')
-        .find('div.book-item')
-        .each((idx, element) => {
-          // Wrap the raw element with Cheerio so we can use Cheerio methods
-          const el = $(element);
-          const title = el.find('div[slot=title]').text().trim();
-          const url = `${el.find('z-bookcard').attr('href')}`;
-          const cover = el.find('z-bookcard').find('img').attr('data-src');
-          const name = `${title}`;
-          const path = `${url.replace(/^\/book\//, '')}`;
 
-          novels.push({
-            name,
-            path,
-            cover,
-          });
+    $('#searchResultBox')
+      .find('div.book-item')
+      .each((idx, element) => {
+        // Wrap the raw element with Cheerio so we can use Cheerio methods
+        const el = $(element);
+        const title = el.find('div[slot=title]').text().trim();
+        const url = `${el.find('z-bookcard').attr('href')}`;
+        const cover = el.find('z-bookcard').find('img').attr('data-src');
+        const name = `${title}`;
+        const path = `${url.replace(/^\/book\//, '')}`;
+
+        novels.push({
+          name,
+          path,
+          cover,
         });
-    } else {
-      $('div.masonry-endless')
-        .find('div.item')
-        .each((idx, element) => {
-          // Wrap the raw element with Cheerio so we can use Cheerio methods
-          const el = $(element);
-          const title = el.find('z-cover').attr('title');
-          const url = `${el.find('a').attr('href')}`;
-          const cover = el.find('z-cover').find('img').attr('src');
-          const name = `${title}`;
-          const path = `${url.replace(/^\/book\//, '')}`;
-          novels.push({
-            name,
-            path,
-            cover,
-          });
+      });
+
+    $('div.masonry-endless')
+      .find('div.item')
+      .each((idx, element) => {
+        // Wrap the raw element with Cheerio so we can use Cheerio methods
+        const el = $(element);
+        const title = el.find('z-cover').attr('title');
+        const url = `${el.find('a').attr('href')}`;
+        const cover = el.find('z-cover').find('img').attr('src');
+        const name = `${title}`;
+        const path = `${url.replace(/^\/book\//, '')}`;
+        novels.push({
+          name,
+          path,
+          cover,
         });
-    }
+      });
+
     return novels;
   }
 
@@ -297,7 +297,7 @@ class Zlibrary_plugin implements Plugin.PluginBase {
       (searchTerm.trim() ? '/' + encodeURIComponent(searchTerm.trim()) : '');
 
     // Add filters if they exist
-    if (this.filters) {
+    if (this.filters?.yearFrom?.value) {
       const params = new URLSearchParams();
 
       if (this.filters.yearFrom.value) {
