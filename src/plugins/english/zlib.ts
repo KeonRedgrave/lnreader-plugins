@@ -7,14 +7,14 @@ import * as cheerio from 'cheerio';
 // import { isUrlAbsolute } from '@libs/isAbsoluteUrl';
 // import { storage, localStorage, sessionStorage } from '@libs/storage';
 // import { encode, decode } from 'urlencode';
-
+let filturl = '';
+let isFilter = false;
 class Zlibrary_plugin implements Plugin.PluginBase {
   id = 'zlib';
   name = 'Z-Library';
   icon = 'src/en/zlib/images.png';
   site = 'https://z-lib.fm';
   version = '1.0.0';
-
   filters: Filters = {
     yearFrom: {
       label: 'Year From',
@@ -57,78 +57,96 @@ class Zlibrary_plugin implements Plugin.PluginBase {
   };
 
   imageRequestInit?: Plugin.ImageRequestInit | undefined = undefined;
-
-  //flag indicates whether access to LocalStorage, SesesionStorage is required.
   webStorageUtilized?: boolean;
+
+  async filterUrl(filters: any) {
+    let filteredUrl = '';
+    const params = new URLSearchParams();
+
+    if (filters?.yearFrom?.value) {
+      params.append('yearFrom', filters.yearFrom.value.toString());
+    }
+
+    if (filters?.yearTo?.value) {
+      params.append('yearTo', filters.yearTo.value.toString());
+    }
+
+    if (filters?.language?.value) {
+      params.append('languages[]', filters.language.value.toString());
+    }
+
+    if (filters?.extension?.value) {
+      params.append('extensions[]', filters.extension.value.toString());
+    }
+
+    if (params.toString()) {
+      filteredUrl = '?' + params.toString();
+      filturl = filteredUrl;
+    }
+    return filteredUrl;
+  }
 
   async popularNovels(
     pageNo: number,
     { filters }: Plugin.PopularNovelsOptions<typeof this.filters>,
   ): Promise<Plugin.NovelItem[]> {
-    let url = this.site + '/popular';
     const novels: Plugin.NovelItem[] = [];
 
-    const params = new URLSearchParams();
+    let url = '';
 
-    if (filters?.yearFrom?.value) {
-      params.append('yearFrom', this.filters.yearFrom.value.toString());
+    if (
+      filters &&
+      Object.keys(filters).length > 0 &&
+      Object.values(filters).some(filter => filter.value)
+    ) {
+      url = this.site + '/s' + (await this.filterUrl(filters));
+      isFilter = true;
+    } else {
+      url = this.site + '/popular';
     }
-
-    if (filters?.yearTo?.value) {
-      params.append('yearTo', this.filters.yearTo.value.toString());
-    }
-
-    if (filters?.language?.value) {
-      params.append('languages[]', this.filters.language.value.toString());
-    }
-
-    if (filters?.extension?.value) {
-      params.append('extensions[]', this.filters.extension.value.toString());
-    }
-
-    if (params.toString()) {
-      url = this.site + '/s/?' + params.toString();
-    }
-
     const html: string = await this.getHtml(url);
 
     const $: cheerio.CheerioAPI = loadCheerio(html);
 
-    $('#searchResultBox')
-      .find('div.book-item')
-      .each((idx, element) => {
-        // Wrap the raw element with Cheerio so we can use Cheerio methods
-        const el = $(element);
-        const title = el.find('div[slot=title]').text().trim();
-        const url = `${el.find('z-bookcard').attr('href')}`;
-        const cover = el.find('z-bookcard').find('img').attr('data-src');
-        const name = `${title}`;
-        const path = `${url.replace(/^\/book\//, '')}`;
+    if (
+      filters &&
+      Object.keys(filters).length > 0 &&
+      Object.values(filters).some(filter => filter.value)
+    ) {
+      $('#searchResultBox')
+        .find('div.book-item')
+        .each((idx, element) => {
+          const el = $(element);
+          const title = el.find('div[slot=title]').text().trim();
+          const url = `${el.find('z-bookcard').attr('href')}`;
+          const cover = el.find('z-bookcard').find('img').attr('data-src');
+          const name = `${title}`;
+          const path = `${url.replace(/^\/book\//, '')}`;
 
-        novels.push({
-          name,
-          path,
-          cover,
+          novels.push({
+            name,
+            path,
+            cover,
+          });
         });
-      });
-
-    $('div.masonry-endless')
-      .find('div.item')
-      .each((idx, element) => {
-        // Wrap the raw element with Cheerio so we can use Cheerio methods
-        const el = $(element);
-        const title = el.find('z-cover').attr('title');
-        const url = `${el.find('a').attr('href')}`;
-        const cover = el.find('z-cover').find('img').attr('src');
-        const name = `${title}`;
-        const path = `${url.replace(/^\/book\//, '')}`;
-        novels.push({
-          name,
-          path,
-          cover,
+    } else {
+      $('div.masonry-endless')
+        .find('div.item')
+        .each((idx, element) => {
+          // Wrap the raw element with Cheerio so we can use Cheerio methods
+          const el = $(element);
+          const title = el.find('z-cover').attr('title');
+          const url = `${el.find('a').attr('href')}`;
+          const cover = el.find('z-cover').find('img').attr('src');
+          const name = `${title}`;
+          const path = `${url.replace(/^\/book\//, '')}`;
+          novels.push({
+            name,
+            path,
+            cover,
+          });
         });
-      });
-
+    }
     return novels;
   }
 
@@ -288,39 +306,20 @@ class Zlibrary_plugin implements Plugin.PluginBase {
     return 'No content.';
   }
 
-  async searchNovels(searchTerm: string): Promise<Plugin.NovelItem[]> {
+  async searchNovels(
+    searchTerm: string,
+    pageNo: number,
+  ): Promise<Plugin.NovelItem[]> {
     const novels: Plugin.NovelItem[] = [];
 
     let url =
       this.site +
       '/s' +
       (searchTerm.trim() ? '/' + encodeURIComponent(searchTerm.trim()) : '');
-
     // Add filters if they exist
-    if (this.filters?.yearFrom?.value) {
-      const params = new URLSearchParams();
-
-      if (this.filters.yearFrom.value) {
-        params.append('yearFrom', this.filters.yearFrom.value.toString());
-      }
-
-      if (this.filters.yearTo.value) {
-        params.append('yearTo', this.filters.yearTo.value.toString());
-      }
-
-      if (this.filters.language.value) {
-        params.append('languages[]', this.filters.language.value.toString());
-      }
-
-      if (this.filters.extension.value) {
-        params.append('extensions[]', this.filters.extension.value.toString());
-      }
-
-      if (params.toString()) {
-        url += '/?' + params.toString();
-      }
+    if (isFilter) {
+      url += filturl;
     }
-
     const html: string = await this.getHtml(url);
 
     const $: cheerio.CheerioAPI = loadCheerio(html);
